@@ -1,0 +1,2421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>E.T. The Extra-Terrestrial: Remastered</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Orbitron:wght@500;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030612;
+            color: #f8fafc;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+        .font-display {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .font-et-title {
+            font-family: 'Cinzel Decorative', 'Orbitron', serif;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        /* Starfield Celestial Twilight Glass Panels */
+        .glass-hud {
+            background: linear-gradient(145deg, rgba(13, 21, 46, 0.78), rgba(7, 11, 26, 0.85));
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(251, 191, 36, 0.28);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(254, 240, 138, 0.14);
+        }
+        /* Classic Atari 1982 Rainbow Accent Bar */
+        .atari-stripe {
+            height: 3px;
+            background: linear-gradient(90deg, #ef4444 0%, #f97316 33%, #eab308 66%, #38bdf8 100%);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.45), inset 0 0 10px rgba(254, 240, 138, 0.18);
+        }
+        .glow-amber {
+            box-shadow: 0 0 18px rgba(251, 191, 36, 0.4);
+        }
+        .glow-heart {
+            box-shadow: 0 0 22px rgba(244, 63, 94, 0.45);
+        }
+        .vignette-overlay {
+            background:
+                radial-gradient(circle at 85% 12%, rgba(254, 243, 199, 0.08) 0%, transparent 28%),
+                radial-gradient(circle at center, transparent 58%, rgba(2, 5, 16, 0.72) 100%);
+            pointer-events: none;
+        }
+        /* Custom animations */
+        @keyframes pulseGlow {
+            0%, 100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 5px rgba(244, 63, 94, 0.9));
+            }
+            50% {
+                transform: scale(1.18);
+                filter: drop-shadow(0 0 14px rgba(251, 113, 133, 1));
+            }
+        }
+        @keyframes fingerSpark {
+            0%, 100% { box-shadow: 0 0 8px #fef08a, 0 0 16px #38bdf8; }
+            50% { box-shadow: 0 0 16px #fef9c3, 0 0 28px #7dd3fc; }
+        }
+        .heart-glow {
+            animation: pulseGlow 1.6s ease-in-out infinite;
+        }
+        .finger-beacon {
+            animation: fingerSpark 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center p-2 sm:p-4 bg-[#030612]">
+
+    <!-- Unified Game Screen Container (All UI overlays stay strictly inside these boundaries) -->
+    <main class="relative w-full h-full max-w-6xl max-h-[860px] rounded-2xl overflow-hidden border-2 border-amber-400/35 shadow-[0_0_70px_rgba(30,58,138,0.45)] bg-slate-950">
+        <!-- Full-Bleed 3D Isometric Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Full-Moon & Starry Twilight Vignette -->
+        <div class="absolute inset-0 vignette-overlay"></div>
+
+        <!-- TOP OVERLAY HUD: Floating E.T. Thematic Telemetry Pills Inside Game Screen -->
+        <div class="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex items-start justify-between gap-2 pointer-events-none z-10">
+
+            <!-- Left Cluster: Sector Identity & Heartlight Bio-Core -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pointer-events-auto">
+                <!-- Zone Badge with Atari Rainbow Trim -->
+                <div class="glass-hud rounded-xl overflow-hidden">
+                    <div class="atari-stripe"></div>
+                    <div class="px-3.5 py-2 flex items-center gap-2.5">
+                        <!-- Stylized Crescent Moon Emblem -->
+                        <div class="w-7 h-7 rounded-lg bg-indigo-950/90 border border-amber-300/40 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(253,224,71,0.25)]">
+                            <svg class="w-4 h-4 text-amber-200" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-[9px] font-display tracking-[0.2em] text-amber-300 uppercase">E.T. // EARTH SECTOR</div>
+                            <div id="zoneLabel" class="text-xs sm:text-sm font-semibold text-amber-50 leading-tight">Zone 1: Landing Forest</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Glowing Chest Heartlight Gauge -->
+                <div class="glass-hud px-3.5 py-2 rounded-xl min-w-[175px] sm:min-w-[215px] border-rose-500/35 glow-heart">
+                    <div class="flex items-center justify-between text-[10px] font-display tracking-wider mb-1">
+                        <span class="flex items-center gap-1.5 text-rose-300 font-bold">
+                            <svg class="w-3.5 h-3.5 text-rose-500 heart-glow" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                            <span>HEARTLIGHT</span>
+                        </span>
+                        <span id="energyText" class="font-mono text-amber-200 font-bold text-xs">9999</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-950/90 rounded-full overflow-hidden p-[2px] border border-rose-400/35">
+                        <div id="energyBar" class="h-full rounded-full bg-gradient-to-r from-rose-600 via-orange-400 to-amber-300 transition-all duration-150" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Cluster: Reese's Pieces, Interplanetary Phone Communicator & Star Map Radar -->
+            <div class="flex items-start gap-2 pointer-events-auto">
+                <!-- Inventory & Audio Group -->
+                <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                    <div class="glass-hud px-3.5 py-2 rounded-xl flex items-center gap-3">
+                        <!-- Reese's Pieces Candy Counter -->
+                        <div class="flex items-center gap-1.5" title="Reese's Pieces (Restores Heartlight & Distracts Agents)">
+                            <span class="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-amber-300 via-orange-500 to-amber-800 border border-amber-200/60 shadow-[0_0_10px_rgba(249,115,22,0.8)]"></span>
+                            <span id="candyCount" class="font-display text-xs sm:text-sm font-bold text-amber-300">0</span>
+                        </div>
+
+                        <div class="w-[1px] h-4 bg-amber-400/25"></div>
+
+                        <!-- Speak & Spell Interplanetary Phone Communicator Slots -->
+                        <div class="flex items-center gap-1.5" title="Interplanetary Phone Transmitter Pieces">
+                            <svg class="w-3.5 h-3.5 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                            </svg>
+                            <span class="text-[10px] text-amber-200/90 font-display tracking-wider">PHONE</span>
+                            <div class="flex items-center gap-1 bg-slate-950/80 px-1.5 py-1 rounded-md border border-amber-400/25">
+                                <span id="part1" class="w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-600 transition-all"></span>
+                                <span id="part2" class="w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-600 transition-all"></span>
+                                <span id="part3" class="w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-600 transition-all"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Toggle Pill -->
+                    <button id="soundBtn" class="glass-hud p-2.5 rounded-xl hover:bg-indigo-900/70 text-amber-200 transition active:scale-95" title="Toggle Audio">
+                        <svg id="soundIconOn" class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                        <svg id="soundIconOff" class="w-4 h-4 hidden text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                    </button>
+
+                    <!-- Unit Test Runner Pill -->
+                    <button id="runTestsBtn" class="glass-hud px-2.5 py-2 rounded-xl hover:bg-amber-500/20 border border-amber-400/40 text-amber-300 font-display text-[10px] font-bold tracking-wider transition active:scale-95" title="Run Automated Unit Tests [T]">
+                        QA [T]
+                    </button>
+                </div>
+
+                <!-- Isometric Diamond Sector Radar (Aligned to 45° Camera Axes) -->
+                <div class="glass-hud p-2 rounded-xl pointer-events-none hidden xs:block sm:block">
+                    <div class="text-[8px] font-display text-amber-300/90 text-center mb-1 tracking-widest">ISO RADAR</div>
+                    <div class="relative w-24 h-20 flex items-center justify-center">
+                        <!-- Isometric Axis Guides matching screen movement directions -->
+                        <span class="absolute top-0 left-1 text-[7px] font-mono text-amber-300/70" title="Walk Up-Left">↖N</span>
+                        <span class="absolute top-0 right-1 text-[7px] font-mono text-amber-300/70" title="Walk Up-Right">E↗</span>
+                        <span class="absolute bottom-0 left-1 text-[7px] font-mono text-amber-300/70" title="Walk Down-Left">↙W</span>
+                        <span class="absolute bottom-0 right-1 text-[7px] font-mono text-amber-300/70" title="Walk Down-Right">S↘</span>
+                        <!-- 45-Degree Tilted Diamond Sector Grid -->
+                        <div id="miniMap" class="grid grid-cols-3 gap-1 w-14 h-14 rotate-45">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Notification Toast (Inside Top-Left Below HUD) -->
+        <div id="toastBox" class="absolute top-24 sm:top-20 left-3 sm:left-4 max-w-xs glass-hud border-l-4 border-amber-400 text-amber-50 px-3.5 py-2 rounded-xl text-xs transform -translate-x-[120%] opacity-0 transition-all duration-300 pointer-events-none z-10">
+            <p id="toastMessage" class="font-medium leading-snug"></p>
+        </div>
+
+        <!-- Unit Test & Diagnostics Drawer (Contained Inside Game Screen) -->
+        <div id="testPanel" class="hidden absolute top-20 right-3 sm:right-4 w-80 sm:w-96 max-h-[70%] overflow-y-auto glass-hud border border-amber-400/45 rounded-2xl p-4 z-30 shadow-2xl text-xs">
+            <div class="flex items-center justify-between border-b border-amber-400/25 pb-2 mb-2.5">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-300 animate-pulse"></span>
+                    <span class="font-display font-bold text-amber-300 tracking-wider text-[11px]">TELEMETRY DIAGNOSTICS</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="testSummaryBadge" class="px-2 py-0.5 rounded bg-slate-900 font-mono text-[10px] text-amber-200">READY</span>
+                    <button id="closeTestPanel" class="text-slate-400 hover:text-white font-bold px-1.5 py-0.5 rounded hover:bg-slate-800">✕</button>
+                </div>
+            </div>
+            <div id="testResultsList" class="space-y-1.5 font-mono text-[11px]"></div>
+        </div>
+
+        <!-- Context Action Prompt Pill (Centered Above Bottom Controls) -->
+        <div id="actionPrompt" class="absolute bottom-20 left-1/2 -translate-x-1/2 glass-hud border border-amber-300/60 text-amber-200 px-4 py-1.5 rounded-full text-xs font-display tracking-wider opacity-0 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap shadow-[0_0_20px_rgba(251,191,36,0.3)]">
+            Press [SPACE] to Scan / Levitate
+        </div>
+
+        <!-- BOTTOM OVERLAY CONTROLS: Integrated Inside Game Screen Boundaries -->
+        <div class="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex items-end justify-between gap-2 pointer-events-none z-10">
+            <!-- Virtual D-Pad for Touch Devices -->
+            <div class="flex items-center gap-1.5 sm:hidden pointer-events-auto">
+                <button id="btnLeft" class="glass-hud w-11 h-11 rounded-xl flex items-center justify-center active:bg-amber-500/30 text-amber-100 font-bold">◀</button>
+                <div class="flex flex-col gap-1.5">
+                    <button id="btnUp" class="glass-hud w-11 h-9 rounded-xl flex items-center justify-center active:bg-amber-500/30 text-amber-100 font-bold">▲</button>
+                    <button id="btnDown" class="glass-hud w-11 h-9 rounded-xl flex items-center justify-center active:bg-amber-500/30 text-amber-100 font-bold">▼</button>
+                </div>
+                <button id="btnRight" class="glass-hud w-11 h-11 rounded-xl flex items-center justify-center active:bg-amber-500/30 text-amber-100 font-bold">▶</button>
+            </div>
+
+            <!-- Subtle Celestial Keycap Legend (Desktop) -->
+            <div class="hidden sm:flex items-center gap-3 text-[11px] text-amber-100/90 glass-hud px-3.5 py-2 rounded-xl pointer-events-auto">
+                <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-indigo-950/90 rounded border border-amber-400/35 text-[10px] font-mono text-amber-300">WASD</kbd> Walk</span>
+                <span class="text-amber-500/40">✦</span>
+                <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-indigo-950/90 rounded border border-amber-400/35 text-[10px] font-mono text-amber-300">SHIFT</kbd> Waddle Fast</span>
+                <span class="text-amber-500/40">✦</span>
+                <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-indigo-950/90 rounded border border-sky-400/45 text-[10px] font-mono text-sky-300">SPACE</kbd> Finger Glow</span>
+                <span class="text-amber-500/40">✦</span>
+                <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-indigo-950/90 rounded border border-orange-400/45 text-[10px] font-mono text-orange-300">E</kbd> Candy</span>
+            </div>
+
+            <!-- Tactile E.T. Action Triggers (Right Corner) -->
+            <div class="flex items-center gap-2 ml-auto pointer-events-auto">
+                <button id="eatBtn" class="glass-hud px-3.5 py-2.5 rounded-xl border border-orange-400/50 hover:bg-orange-500/20 text-amber-300 font-display text-xs font-bold active:scale-95 transition glow-amber flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-amber-300 to-orange-600"></span>
+                    <span>CANDY [E]</span>
+                </button>
+                <button id="actionBtn" class="glass-hud px-4 py-2.5 rounded-xl border border-sky-300/60 hover:bg-sky-500/25 text-amber-100 font-display text-xs font-bold active:scale-95 transition glow-cyan flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-200 finger-beacon"></span>
+                    <span>TELEPATHY [SPACE]</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Start / Pause / Game Over Modal Overlay (Classic 1982 Movie Poster & Atari Theme Inside Game Screen) -->
+        <div id="modalOverlay" class="absolute inset-0 bg-[#030614]/85 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 text-center z-20">
+            <div class="max-w-md w-full glass-hud border-2 border-amber-400/45 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(251,191,36,0.2)]">
+                <!-- Iconic Atari 1982 Rainbow Top Stripe -->
+                <div class="atari-stripe"></div>
+
+                <div class="p-6 sm:p-7">
+                    <!-- Moon & Glowing Fingertip Crest -->
+                    <div class="mx-auto w-14 h-14 rounded-full bg-gradient-to-b from-indigo-900 to-slate-950 border border-amber-300/50 flex items-center justify-center mb-3 shadow-[0_0_25px_rgba(253,224,71,0.3)]">
+                        <svg class="w-8 h-8 text-amber-200" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                        </svg>
+                    </div>
+
+                    <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/35 text-amber-300 text-[10px] font-display tracking-[0.22em] mb-2">
+                        <span>1982 ATARI CLASSIC REIMAGINED</span>
+                    </div>
+
+                    <h2 id="modalTitle" class="font-et-title text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-300 to-orange-500 mb-2 tracking-wider drop-shadow-[0_2px_10px_rgba(249,115,22,0.45)]">
+                        E.T. PHONE HOME
+                    </h2>
+                    <p id="modalSubtitle" class="text-slate-200 text-xs sm:text-sm mb-5 leading-relaxed">
+                        Stranded in the moonlit forest, E.T. must explore 6 sectors, descend into subterranean wells to recover the 3 interplanetary phone pieces, eat Reese's Pieces to keep his Heartlight glowing, and signal the mothership!
+                    </p>
+
+                    <!-- Thematic Controls Legend -->
+                    <div class="grid grid-cols-2 gap-2 text-left text-[11px] bg-slate-950/75 p-3.5 rounded-xl border border-amber-400/25 mb-5">
+                        <div class="flex flex-col">
+                            <span class="text-amber-300 font-display font-bold text-[10px]">WASD / ARROWS</span>
+                            <span class="text-slate-300">Explore & Sprint (Shift)</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sky-300 font-display font-bold text-[10px]">SPACEBAR</span>
+                            <span class="text-slate-300">Finger Scan / Jump & Float</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-orange-400 font-display font-bold text-[10px]">KEY [E]</span>
+                            <span class="text-slate-300">Reese's Piece (+850 Heart)</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-rose-400 font-display font-bold text-[10px]">HEARTLIGHT</span>
+                            <span class="text-slate-300">Avoid Agents & Spikes</span>
+                        </div>
+                    </div>
+
+                    <button id="startBtn" class="w-full py-3.5 px-6 rounded-xl font-display font-black text-slate-950 bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400 hover:brightness-110 active:scale-95 transition shadow-[0_0_25px_rgba(251,191,36,0.45)] text-sm sm:text-base tracking-widest">
+                        PHONE HOME
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ==========================================
+        // 1. SYNTHESIZED AUDIO ENGINE (TONE.JS)
+        // ==========================================
+        const audio = {
+            enabled: true,
+            initialized: false,
+            synth: null,
+            polySynth: null,
+            async init() {
+                if (this.initialized) return;
+                try {
+                    await Tone.start();
+                    this.synth = new Tone.Synth({
+                        oscillator: { type: 'triangle' },
+                        envelope: { attack: 0.02, decay: 0.15, sustain: 0.2, release: 0.4 }
+                    }).toDestination();
+                    this.synth.volume.value = -10;
+
+                    this.polySynth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: 'sine' },
+                        envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.8 }
+                    }).toDestination();
+                    this.polySynth.volume.value = -12;
+                    this.initialized = true;
+                } catch (e) {
+                    console.warn('Audio init deferred:', e);
+                }
+            },
+            playTone(note, duration = '16n') {
+                if (!this.enabled || !this.initialized || !this.synth) return;
+                try {
+                    this.synth.triggerAttackRelease(note, duration);
+                } catch (e) {}
+            },
+            playChord(notes, duration = '8n') {
+                if (!this.enabled || !this.initialized || !this.polySynth) return;
+                try {
+                    this.polySynth.triggerAttackRelease(notes, duration);
+                } catch (e) {}
+            },
+            playTelepathy() {
+                this.playChord(['C5', 'G5', 'D6'], '4n');
+            },
+            playPickup() {
+                this.playTone('E5', '16n');
+                setTimeout(() => this.playTone('B5', '16n'), 70);
+            },
+            playPartFound() {
+                this.playChord(['C4', 'E4', 'G4', 'B4', 'D5'], '2n');
+            },
+            playJump() {
+                this.playTone('G4', '32n');
+            },
+            playHurt() {
+                this.playTone('C3', '8n');
+            },
+            playVictory() {
+                const melody = ['C5', 'G5', 'F5', 'E5', 'D5', 'E5', 'C5'];
+                melody.forEach((n, i) => {
+                    setTimeout(() => this.playTone(n, '8n'), i * 160);
+                });
+            }
+        };
+
+        // ==========================================
+        // 2. WORLD TOPOLOGY & GAME STATE
+        // ==========================================
+        const FIXED_ISO_YAW = Math.PI / 4;
+        const ARENA_HALF = 11;
+
+        const ZONES = [
+            { id: 0, name: 'Landing Forest', biome: 'forest', groundColor: 0x172b26, accentColor: 0x2dd4bf, hasLandingPad: true },
+            { id: 1, name: 'Whispering Pines', biome: 'forest', groundColor: 0x1a3022, accentColor: 0x4ade80 },
+            { id: 2, name: 'Crystal Cavern Basin', biome: 'crystal', groundColor: 0x1a1e36, accentColor: 0x38bdf8 },
+            { id: 3, name: 'Suburban Outskirts', biome: 'suburb', groundColor: 0x222638, accentColor: 0xfbbf24 },
+            { id: 4, name: 'Moonlit Ridge', biome: 'crystal', groundColor: 0x1d243b, accentColor: 0x818cf8 },
+            { id: 5, name: 'Elliott’s Backyard', biome: 'suburb', groundColor: 0x1f2d2a, accentColor: 0xfb923c }
+        ];
+
+        // 6-Zone Cube Topology
+        const ZONE_LINKS = {
+            0: { N: 2, E: 1, S: 4, W: 3 },
+            1: { N: 2, E: 3, S: 4, W: 0 },
+            2: { N: 5, E: 1, S: 0, W: 3 },
+            3: { N: 2, E: 0, S: 4, W: 1 },
+            4: { N: 0, E: 1, S: 5, W: 3 },
+            5: { N: 4, E: 1, S: 2, W: 3 }
+        };
+
+        const keys = {};
+        const state = {
+            mode: 'MENU', // MENU, OVERWORLD, WELL, MOTHERSHIP, VICTORY, GAMEOVER
+            currentZone: 0,
+            energy: 9999,
+            maxEnergy: 9999,
+            candy: 0,
+            partsCollected: [false, false, false],
+            hasGeranium: false,
+            rescuedOnce: false,
+            player: {
+                x: 0,
+                y: 0,
+                z: 2.2,
+                vy: 0,
+                grounded: true,
+                facing: 0,
+                invuln: 0,
+                walkPhase: 0
+            },
+            neckStretch: 0,
+            neckTarget: 0,
+            fingerGlow: 0,
+            activeWell: null,
+            levitatingOut: false,
+            levitateProgress: 0,
+            levitateStart: { x: 0, y: 0, z: 0 },
+            zonesData: [],
+            enemies: [],
+            mothershipTimer: 0,
+            mothershipStartPos: { x: 0, z: 0 }
+        };
+
+        // ==========================================
+        // 3. THREE.JS SCENE & 3D ASSET BUILDERS
+        // ==========================================
+        let scene, camera, renderer;
+        let worldGroup, propGroup, wellGroup;
+        let etMesh, etNeckGroup, etHeadGroup, etHeartLight, etHeartMesh, etFingerOrb, etFingerLight;
+        let etLeftLeg, etRightLeg, etLeftArm, etRightArm;
+        let enemyMeshes = [];
+        let wellMeshes = [];
+        let candyMeshes = [];
+        let mothershipMesh = null;
+        let mothershipBeamMesh = null;
+        let dungeonObstacles = [];
+        let dungeonSpikes = [];
+        let dungeonLootMesh = null;
+        let dungeonExitBeam = null;
+
+        function createGroundTexture(baseHex, accentHex) {
+            const c = document.createElement('canvas');
+            c.width = 256;
+            c.height = 256;
+            const ctx = c.getContext('2d');
+            const baseCol = new THREE.Color(baseHex);
+            const accCol = new THREE.Color(accentHex);
+
+            ctx.fillStyle = `#${baseCol.getHexString()}`;
+            ctx.fillRect(0, 0, 256, 256);
+
+            for (let i = 0; i < 450; i++) {
+                const x = Math.random() * 256;
+                const y = Math.random() * 256;
+                const r = 1 + Math.random() * 3;
+                ctx.fillStyle = i % 5 === 0
+                    ? `rgba(${Math.round(accCol.r * 255)}, ${Math.round(accCol.g * 255)}, ${Math.round(accCol.b * 255)}, 0.14)`
+                    : 'rgba(255,255,255,0.04)';
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.lineWidth = 1;
+            for (let g = 0; g <= 256; g += 32) {
+                ctx.beginPath();
+                ctx.moveTo(g, 0);
+                ctx.lineTo(g, 256);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, g);
+                ctx.lineTo(256, g);
+                ctx.stroke();
+            }
+
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(4, 4);
+            return tex;
+        }
+
+        function buildETModel() {
+            const root = new THREE.Group();
+            const skinMat = new THREE.MeshStandardMaterial({
+                color: 0x8b6b56,
+                roughness: 0.72,
+                metalness: 0.05
+            });
+            const darkCreaseMat = new THREE.MeshStandardMaterial({
+                color: 0x5c4334,
+                roughness: 0.85
+            });
+
+            // Wide Duck-Like Feet
+            const footGeo = new THREE.BoxGeometry(0.32, 0.12, 0.48);
+            etLeftLeg = new THREE.Group();
+            etLeftLeg.position.set(-0.22, 0.18, 0);
+            const lFoot = new THREE.Mesh(footGeo, skinMat);
+            lFoot.position.set(0, -0.1, 0.08);
+            lFoot.castShadow = true;
+            etLeftLeg.add(lFoot);
+            root.add(etLeftLeg);
+
+            etRightLeg = new THREE.Group();
+            etRightLeg.position.set(0.22, 0.18, 0);
+            const rFoot = new THREE.Mesh(footGeo, skinMat);
+            rFoot.position.set(0, -0.1, 0.08);
+            rFoot.castShadow = true;
+            etRightLeg.add(rFoot);
+            root.add(etRightLeg);
+
+            // Pear-Shaped Sculpted Torso
+            const torso = new THREE.Mesh(new THREE.SphereGeometry(0.46, 20, 18), skinMat);
+            torso.scale.set(1.05, 1.15, 0.92);
+            torso.position.y = 0.62;
+            torso.castShadow = true;
+            root.add(torso);
+
+            // Glowing Chest Heartlight
+            etHeartMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.14, 14, 14),
+                new THREE.MeshStandardMaterial({
+                    color: 0xff2a55,
+                    emissive: 0xff1e42,
+                    emissiveIntensity: 1.6,
+                    roughness: 0.2
+                })
+            );
+            etHeartMesh.position.set(0, 0.68, 0.39);
+            root.add(etHeartMesh);
+
+            etHeartLight = new THREE.PointLight(0xff3355, 1.2, 4.5);
+            etHeartLight.position.set(0, 0.72, 0.6);
+            root.add(etHeartLight);
+
+            // Long Articulated Arms & Glowing Right Fingertip
+            etLeftArm = new THREE.Group();
+            etLeftArm.position.set(-0.46, 0.86, 0);
+            const lArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.68, 10), skinMat);
+            lArmMesh.position.y = -0.32;
+            lArmMesh.rotation.z = 0.14;
+            etLeftArm.add(lArmMesh);
+            root.add(etLeftArm);
+
+            etRightArm = new THREE.Group();
+            etRightArm.position.set(0.46, 0.86, 0);
+            const rArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.68, 10), skinMat);
+            rArmMesh.position.y = -0.32;
+            rArmMesh.rotation.z = -0.14;
+            etRightArm.add(rArmMesh);
+
+            // Extended Index Finger + Glowing Beacon Orb
+            const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.24, 8), skinMat);
+            finger.position.set(0.06, -0.72, 0.08);
+            finger.rotation.x = 0.35;
+            etRightArm.add(finger);
+
+            etFingerOrb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.085, 12, 12),
+                new THREE.MeshBasicMaterial({ color: 0xfef08a })
+            );
+            etFingerOrb.position.set(0.06, -0.82, 0.14);
+            etFingerOrb.visible = false;
+            etRightArm.add(etFingerOrb);
+
+            etFingerLight = new THREE.PointLight(0xfde047, 0, 5.5);
+            etFingerLight.position.copy(etFingerOrb.position);
+            etRightArm.add(etFingerLight);
+            root.add(etRightArm);
+
+            // Telescoping Wrinkled Neck & Sculpted Flat-Topped Head
+            etNeckGroup = new THREE.Group();
+            etNeckGroup.position.set(0, 1.05, 0);
+
+            const neckCol = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.21, 0.38, 14), skinMat);
+            neckCol.position.y = 0.16;
+            etNeckGroup.add(neckCol);
+
+            for (let r = 0; r < 3; r++) {
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(0.175, 0.022, 8, 18), darkCreaseMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 0.08 + r * 0.1;
+                etNeckGroup.add(ring);
+            }
+
+            etHeadGroup = new THREE.Group();
+            etHeadGroup.position.set(0, 0.42, 0.04);
+
+            // Iconic Football-Shaped Cranium
+            const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.32, 20, 16), skinMat);
+            cranium.scale.set(1.28, 0.76, 1.05);
+            cranium.castShadow = true;
+            etHeadGroup.add(cranium);
+
+            // Brow Ridges
+            const brow = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.08, 0.24), darkCreaseMat);
+            brow.position.set(0, 0.08, 0.24);
+            etHeadGroup.add(brow);
+
+            // Large Expressive Blue Eyes
+            const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2 });
+            const irisMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x0369a1, emissiveIntensity: 0.4 });
+            [-0.17, 0.17].forEach(ex => {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12), eyeWhiteMat);
+                eye.position.set(ex, 0.01, 0.28);
+                etHeadGroup.add(eye);
+
+                const iris = new THREE.Mesh(new THREE.SphereGeometry(0.052, 10, 10), irisMat);
+                iris.position.set(ex, 0.01, 0.335);
+                etHeadGroup.add(iris);
+            });
+
+            etNeckGroup.add(etHeadGroup);
+            root.add(etNeckGroup);
+
+            return root;
+        }
+
+        function buildAgentModel(type) {
+            const root = new THREE.Group();
+            const isFBI = type === 'fbi';
+
+            const coatMat = new THREE.MeshStandardMaterial({
+                color: isFBI ? 0x1e293b : 0xf1f5f9,
+                roughness: 0.6
+            });
+            const pantsMat = new THREE.MeshStandardMaterial({
+                color: isFBI ? 0x0f172a : 0x334155,
+                roughness: 0.75
+            });
+            const skinMat = new THREE.MeshStandardMaterial({
+                color: 0xf1c27d,
+                roughness: 0.65
+            });
+
+            // Legs
+            [-0.16, 0.16].forEach(lx => {
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.65, 10), pantsMat);
+                leg.position.set(lx, 0.32, 0);
+                leg.castShadow = true;
+                root.add(leg);
+            });
+
+            // Trenchcoat / Labcoat Torso
+            const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.34, 0.95, 14), coatMat);
+            coat.position.y = 0.95;
+            coat.castShadow = true;
+            root.add(coat);
+
+            // Tie / Collar Accent
+            const tie = new THREE.Mesh(
+                new THREE.BoxGeometry(0.08, 0.34, 0.05),
+                new THREE.MeshStandardMaterial({ color: isFBI ? 0xdc2626 : 0x0284c7 })
+            );
+            tie.position.set(0, 1.18, 0.23);
+            root.add(tie);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), skinMat);
+            head.position.set(0, 1.62, 0);
+            head.castShadow = true;
+            root.add(head);
+
+            if (isFBI) {
+                // Fedora Hat & Sunglasses
+                const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.04, 18), coatMat);
+                brim.position.set(0, 1.76, 0);
+                root.add(brim);
+
+                const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.23, 0.18, 16), coatMat);
+                crown.position.set(0, 1.85, 0);
+                root.add(crown);
+
+                const shades = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.32, 0.07, 0.08),
+                    new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.15, metalness: 0.8 })
+                );
+                shades.position.set(0, 1.64, 0.19);
+                root.add(shades);
+            } else {
+                // Scientist Glasses & Hair
+                const hair = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.23, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
+                    new THREE.MeshStandardMaterial({ color: 0x94a3b8 })
+                );
+                hair.position.set(0, 1.64, -0.02);
+                root.add(hair);
+
+                const glasses = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.3, 0.07, 0.06),
+                    new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4 })
+                );
+                glasses.position.set(0, 1.63, 0.2);
+                root.add(glasses);
+            }
+
+            return root;
+        }
+
+        function buildPineTree() {
+            const tree = new THREE.Group();
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.16, 0.24, 1.1, 10),
+                new THREE.MeshStandardMaterial({ color: 0x45271a, roughness: 0.9 })
+            );
+            trunk.position.y = 0.55;
+            trunk.castShadow = true;
+            tree.add(trunk);
+
+            const foliageColors = [0x14532d, 0x166534, 0x15803d];
+            for (let tier = 0; tier < 3; tier++) {
+                const cone = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.15 - tier * 0.26, 1.45 - tier * 0.15, 12),
+                    new THREE.MeshStandardMaterial({ color: foliageColors[tier], roughness: 0.8 })
+                );
+                cone.position.y = 1.45 + tier * 0.85;
+                cone.castShadow = true;
+                tree.add(cone);
+            }
+            return tree;
+        }
+
+        function buildSuburbHouse() {
+            const house = new THREE.Group();
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(2.6, 1.8, 2.2),
+                new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.75 })
+            );
+            body.position.y = 0.9;
+            body.castShadow = true;
+            house.add(body);
+
+            const roof = new THREE.Mesh(
+                new THREE.ConeGeometry(2.15, 1.15, 4),
+                new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.8 })
+            );
+            roof.position.y = 2.35;
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            house.add(roof);
+
+            const chimney = new THREE.Mesh(
+                new THREE.BoxGeometry(0.35, 0.9, 0.35),
+                new THREE.MeshStandardMaterial({ color: 0x991b1b })
+            );
+            chimney.position.set(0.65, 2.55, -0.45);
+            house.add(chimney);
+
+            // Warm Illuminated Windows
+            const winMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+            [-0.65, 0.65].forEach(wx => {
+                const win = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.55), winMat);
+                win.position.set(wx, 1.0, 1.11);
+                house.add(win);
+            });
+
+            return house;
+        }
+
+        function buildCrystalCluster(colorHex) {
+            const cluster = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 0.35,
+                roughness: 0.25
+            });
+            for (let i = 0; i < 4; i++) {
+                const h = 0.65 + Math.random() * 0.85;
+                const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), mat);
+                shard.scale.set(0.65, h * 2.1, 0.65);
+                shard.position.set((Math.random() - 0.5) * 0.6, h * 0.5, (Math.random() - 0.5) * 0.6);
+                shard.rotation.set((Math.random() - 0.5) * 0.35, Math.random() * Math.PI, (Math.random() - 0.5) * 0.35);
+                cluster.add(shard);
+            }
+            return cluster;
+        }
+
+        function buildWellMesh(well) {
+            const g = new THREE.Group();
+            // Dark recessed pit core
+            const pit = new THREE.Mesh(
+                new THREE.CylinderGeometry(well.r * 0.92, well.r * 0.92, 0.14, 24),
+                new THREE.MeshBasicMaterial({ color: 0x02040a })
+            );
+            pit.position.y = 0.04;
+            g.add(pit);
+
+            // Cobblestone Rim Ring
+            const rim = new THREE.Mesh(
+                new THREE.TorusGeometry(well.r, 0.16, 10, 28),
+                new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.85 })
+            );
+            rim.rotation.x = Math.PI / 2;
+            rim.position.y = 0.1;
+            rim.receiveShadow = true;
+            g.add(rim);
+
+            // Volumetric Glow Rising Out of the Pit (Gold for Phone Parts, Blue for Reese's Pieces)
+            const glowCore = new THREE.Mesh(
+                new THREE.CircleGeometry(well.r * 0.88, 24),
+                new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.0 })
+            );
+            glowCore.rotation.x = -Math.PI / 2;
+            glowCore.position.y = 0.12;
+            g.add(glowCore);
+
+            const glowShaft = new THREE.Mesh(
+                new THREE.CylinderGeometry(well.r * 1.05, well.r * 0.82, 2.6, 24, 1, true),
+                new THREE.MeshBasicMaterial({
+                    color: 0xfbbf24,
+                    transparent: true,
+                    opacity: 0.0,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                })
+            );
+            glowShaft.position.y = 1.38;
+            g.add(glowShaft);
+
+            const glowLight = new THREE.PointLight(0xfbbf24, 0, 5.5);
+            glowLight.position.y = 0.85;
+            g.add(glowLight);
+
+            g.userData = { glowCore, glowShaft, glowLight, activeGlow: false, baseOpacity: 0 };
+            return g;
+        }
+
+        function buildCandyMesh() {
+            const g = new THREE.Group();
+            const colors = [0xf97316, 0xfacc15, 0x78350f];
+            for (let i = 0; i < 3; i++) {
+                const piece = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.16, 12, 10),
+                    new THREE.MeshStandardMaterial({
+                        color: colors[i],
+                        emissive: colors[i],
+                        emissiveIntensity: 0.25,
+                        roughness: 0.3
+                    })
+                );
+                piece.scale.set(1.15, 0.65, 1.15);
+                const a = (i / 3) * Math.PI * 2;
+                piece.position.set(Math.cos(a) * 0.16, 0.14, Math.sin(a) * 0.16);
+                g.add(piece);
+            }
+            return g;
+        }
+
+        function buildCollectibleModel(itemType) {
+            const group = new THREE.Group();
+
+            if (itemType === 'part0') {
+                // Phone Piece #1: Speak & Spell Communicator Console
+                const body = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.76, 0.18, 0.56),
+                    new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.35, metalness: 0.2 })
+                );
+                group.add(body);
+
+                const screen = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.54, 0.04, 0.16),
+                    new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+                );
+                screen.position.set(0, 0.1, -0.14);
+                group.add(screen);
+
+                for (let r = 0; r < 2; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        const key = new THREE.Mesh(
+                            new THREE.BoxGeometry(0.09, 0.04, 0.08),
+                            new THREE.MeshStandardMaterial({ color: (r + c) % 2 === 0 ? 0xfef08a : 0xf97316 })
+                        );
+                        key.position.set(-0.21 + c * 0.14, 0.1, 0.06 + r * 0.12);
+                        group.add(key);
+                    }
+                }
+
+                const ant = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.015, 0.02, 0.45, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 })
+                );
+                ant.position.set(0.28, 0.26, -0.2);
+                ant.rotation.z = -0.22;
+                group.add(ant);
+            } else if (itemType === 'part1') {
+                // Phone Piece #2: Coffee-Can & Coat-Hanger Dish Antenna
+                const can = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.26, 0.26, 0.42, 18),
+                    new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.25 })
+                );
+                group.add(can);
+
+                const dish = new THREE.Mesh(
+                    new THREE.TorusGeometry(0.36, 0.028, 8, 22),
+                    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xd97706, emissiveIntensity: 0.35 })
+                );
+                dish.position.set(0, 0.36, 0);
+                dish.rotation.x = Math.PI / 3;
+                group.add(dish);
+
+                const coil = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.11, 12, 12),
+                    new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+                );
+                coil.position.set(0, 0.36, 0);
+                group.add(coil);
+            } else if (itemType === 'part2') {
+                // Phone Piece #3: Sawblade & Fork Rotary Signal Emitter
+                const spindle = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.09, 0.15, 0.48, 12),
+                    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.3 })
+                );
+                group.add(spindle);
+
+                const blade = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.42, 0.42, 0.04, 16),
+                    new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.5, metalness: 0.7 })
+                );
+                blade.position.y = 0.08;
+                group.add(blade);
+
+                [-0.1, 0, 0.1].forEach(tx => {
+                    const tine = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.03, 0.34, 0.03),
+                        new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.9 })
+                    );
+                    tine.position.set(tx, 0.36, 0);
+                    group.add(tine);
+                });
+
+                const beacon = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.09, 10, 10),
+                    new THREE.MeshBasicMaterial({ color: 0xfef08a })
+                );
+                beacon.position.y = 0.56;
+                group.add(beacon);
+            } else if (itemType === 'geranium') {
+                // Revived Potted Geranium
+                const pot = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.26, 0.18, 0.34, 14),
+                    new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.8 })
+                );
+                group.add(pot);
+
+                const leaves = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(0.28, 1),
+                    new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.6 })
+                );
+                leaves.position.y = 0.24;
+                group.add(leaves);
+
+                const bloom = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.14, 12, 12),
+                    new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0xe11d48, emissiveIntensity: 0.55 })
+                );
+                bloom.position.y = 0.42;
+                group.add(bloom);
+            } else {
+                // Reese's Pieces Stash
+                group.add(buildCandyMesh());
+            }
+
+            return group;
+        }
+
+        function buildMothershipUFO() {
+            const ufo = new THREE.Group();
+
+            // Primary Metallic Saucer Hull
+            const hullMat = new THREE.MeshStandardMaterial({
+                color: 0xcbd5e1,
+                metalness: 0.85,
+                roughness: 0.22
+            });
+            const hull = new THREE.Mesh(new THREE.SphereGeometry(2.8, 32, 18), hullMat);
+            hull.scale.set(1.0, 0.26, 1.0);
+            hull.castShadow = true;
+            ufo.add(hull);
+
+            // Glowing Botanical Greenhouse Dome
+            const dome = new THREE.Mesh(
+                new THREE.SphereGeometry(1.35, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.55),
+                new THREE.MeshStandardMaterial({
+                    color: 0xfef08a,
+                    emissive: 0xf59e0b,
+                    emissiveIntensity: 0.65,
+                    transparent: true,
+                    opacity: 0.88,
+                    roughness: 0.15
+                })
+            );
+            dome.position.y = 0.42;
+            ufo.add(dome);
+
+            // Lower Belly Hatch Ring
+            const hatchRing = new THREE.Mesh(
+                new THREE.TorusGeometry(1.15, 0.12, 10, 28),
+                new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 })
+            );
+            hatchRing.rotation.x = Math.PI / 2;
+            hatchRing.position.y = -0.58;
+            ufo.add(hatchRing);
+
+            // Perimeter Rim Beacon Lights
+            const rimColors = [0x38bdf8, 0xfbbf24, 0xf43f5e, 0x34d399];
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const bulb = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.14, 10, 10),
+                    new THREE.MeshBasicMaterial({ color: rimColors[i % rimColors.length] })
+                );
+                bulb.position.set(Math.cos(angle) * 2.65, 0.02, Math.sin(angle) * 2.65);
+                ufo.add(bulb);
+            }
+
+            // Extending Landing Struts
+            const strutMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.75, roughness: 0.35 });
+            for (let s = 0; s < 3; s++) {
+                const ang = (s / 3) * Math.PI * 2 + Math.PI / 6;
+                const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 1.35, 10), strutMat);
+                strut.position.set(Math.cos(ang) * 1.65, -0.85, Math.sin(ang) * 1.65);
+                strut.rotation.z = -Math.cos(ang) * 0.35;
+                strut.rotation.x = Math.sin(ang) * 0.35;
+                ufo.add(strut);
+            }
+
+            // Volumetric Tractor Beam Cone
+            mothershipBeamMesh = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.95, 2.25, 4.5, 28, 1, true),
+                new THREE.MeshBasicMaterial({
+                    color: 0x7dd3fc,
+                    transparent: true,
+                    opacity: 0.0,
+                    side: THREE.DoubleSide
+                })
+            );
+            mothershipBeamMesh.position.y = -2.4;
+            ufo.add(mothershipBeamMesh);
+
+            const ufoLight = new THREE.PointLight(0xfef08a, 2.5, 14);
+            ufoLight.position.y = -1.2;
+            ufo.add(ufoLight);
+
+            return ufo;
+        }
+
+        function initThree() {
+            const canvas = document.getElementById('gameCanvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x040817);
+            scene.fog = new THREE.FogExp2(0x040817, 0.016);
+
+            // Fixed 45-Degree Orthographic Isometric Camera
+            const frustum = 14.5;
+            const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+            camera = new THREE.OrthographicCamera(
+                -frustum * aspect,
+                frustum * aspect,
+                frustum,
+                -frustum,
+                0.1,
+                120
+            );
+            camera.position.set(22, 22, 22);
+            camera.lookAt(0, 0, 0);
+
+            // Starfield Backdrop
+            const starGeo = new THREE.BufferGeometry();
+            const starVerts = [];
+            for (let i = 0; i < 420; i++) {
+                starVerts.push(
+                    (Math.random() - 0.5) * 90,
+                    8 + Math.random() * 28,
+                    (Math.random() - 0.5) * 90
+                );
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+            const stars = new THREE.Points(
+                starGeo,
+                new THREE.PointsMaterial({ color: 0xfef3c7, size: 0.24, transparent: true, opacity: 0.85 })
+            );
+            scene.add(stars);
+
+            // Spielbergian Moonlit Lighting
+            const ambient = new THREE.AmbientLight(0x475569, 0.95);
+            scene.add(ambient);
+
+            const moonLight = new THREE.DirectionalLight(0xe0f2fe, 1.35);
+            moonLight.position.set(14, 26, 12);
+            moonLight.castShadow = true;
+            moonLight.shadow.mapSize.width = 1024;
+            moonLight.shadow.mapSize.height = 1024;
+            moonLight.shadow.camera.near = 2;
+            moonLight.shadow.camera.far = 65;
+            const d = 18;
+            moonLight.shadow.camera.left = -d;
+            moonLight.shadow.camera.right = d;
+            moonLight.shadow.camera.top = d;
+            moonLight.shadow.camera.bottom = -d;
+            scene.add(moonLight);
+
+            const warmRim = new THREE.DirectionalLight(0xfbbf24, 0.35);
+            warmRim.position.set(-15, 10, -14);
+            scene.add(warmRim);
+
+            worldGroup = new THREE.Group();
+            propGroup = new THREE.Group();
+            wellGroup = new THREE.Group();
+            wellGroup.visible = false;
+            worldGroup.add(propGroup);
+            scene.add(worldGroup);
+            scene.add(wellGroup);
+
+            // Build Character Meshes
+            etMesh = buildETModel();
+            scene.add(etMesh);
+
+            const fbiMesh = buildAgentModel('fbi');
+            const sciMesh = buildAgentModel('scientist');
+            enemyMeshes = [fbiMesh, sciMesh];
+            worldGroup.add(fbiMesh);
+            worldGroup.add(sciMesh);
+
+            handleResize();
+            window.addEventListener('resize', handleResize);
+        }
+
+        function handleResize() {
+            if (!renderer || !camera) return;
+            const container = renderer.domElement.parentElement;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            renderer.setSize(w, h, false);
+
+            const frustum = 14.5;
+            const aspect = w / Math.max(1, h);
+            camera.left = -frustum * aspect;
+            camera.right = frustum * aspect;
+            camera.top = frustum;
+            camera.bottom = -frustum;
+            camera.updateProjectionMatrix();
+        }
+
+        // ==========================================
+        // 4. WORLD GENERATION & ZONE RENDERING
+        // ==========================================
+        function initWorld() {
+            state.currentZone = 0;
+            state.energy = 9999;
+            state.candy = 2;
+            state.partsCollected = [false, false, false];
+            state.hasGeranium = false;
+            state.rescuedOnce = false;
+            state.player = {
+                x: 0,
+                y: 0,
+                z: 2.5,
+                vy: 0,
+                grounded: true,
+                facing: 0,
+                invuln: 0,
+                walkPhase: 0
+            };
+            state.neckStretch = 0;
+            state.neckTarget = 0;
+            state.fingerGlow = 0;
+            state.activeWell = null;
+            state.levitatingOut = false;
+            state.levitateProgress = 0;
+            state.mothershipTimer = 0;
+            worldGroup.visible = true;
+            wellGroup.visible = false;
+            if (etMesh) etMesh.visible = true;
+
+            // Distribute 3 phone parts, 1 geranium, and a randomized subset of candy caches across 18 wells
+            const totalWells = 18;
+            const slots = new Array(totalWells).fill(null);
+            const indices = Array.from({ length: totalWells }, (_, i) => i);
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+
+            slots[indices[0]] = 'part0';
+            slots[indices[1]] = 'part1';
+            slots[indices[2]] = 'part2';
+            slots[indices[3]] = 'geranium';
+
+            const candyCacheCount = 4 + Math.floor(Math.random() * 3); // 4-6 candy wells; remaining 8-10 wells are empty
+            for (let k = 0; k < candyCacheCount; k++) {
+                slots[indices[4 + k]] = 'candy';
+            }
+
+            let slotCursor = 0;
+            state.zonesData = ZONES.map((zMeta) => {
+                const wells = [];
+                const wellCoords = [
+                    { x: -6.2, z: -5.4 },
+                    { x: 6.4, z: -4.8 },
+                    { x: 0.4, z: 6.4 }
+                ];
+                wellCoords.forEach((wc) => {
+                    const item = slots[slotCursor++];
+                    wells.push({
+                        x: wc.x,
+                        z: wc.z,
+                        r: 1.25,
+                        item: item,
+                        revealed: false,
+                        collected: false,
+                        seed: Math.random() * 100
+                    });
+                });
+
+                // Overworld Reese's Pieces
+                const candies = [];
+                for (let c = 0; c < 3; c++) {
+                    candies.push({
+                        x: (Math.random() - 0.5) * 14,
+                        z: (Math.random() - 0.5) * 14,
+                        collected: false
+                    });
+                }
+
+                // Solid Environmental Colliders (Trees, Houses, Crystals)
+                const obstacles = [];
+                const propSpots = [
+                    { x: -8.5, z: 4.5 },
+                    { x: 8.2, z: 5.2 },
+                    { x: -8.2, z: -8.2 },
+                    { x: 8.5, z: -8.2 }
+                ];
+                propSpots.forEach((ps, idx) => {
+                    if (zMeta.biome === 'suburb' && idx === 0) {
+                        obstacles.push({ type: 'house', x: ps.x, z: ps.z, halfW: 1.45, halfD: 1.25 });
+                    } else if (zMeta.biome === 'crystal') {
+                        obstacles.push({ type: 'crystal', x: ps.x, z: ps.z, r: 0.85 });
+                    } else {
+                        obstacles.push({ type: 'tree', x: ps.x, z: ps.z, r: 0.72 });
+                    }
+                });
+
+                return { wells, candies, obstacles };
+            });
+
+            state.enemies = [
+                { type: 'fbi', zone: 1, x: 4, z: 4, speed: 3.1, stunTimer: 0, phase: 0 },
+                { type: 'scientist', zone: 3, x: -4, z: -4, speed: 2.7, stunTimer: 0, phase: 1.5 }
+            ];
+
+            loadZoneScene(state.currentZone);
+            buildMiniMap();
+            updateHUD();
+        }
+
+        function loadZoneScene(zoneIdx) {
+            const zMeta = ZONES[zoneIdx];
+            const zData = state.zonesData[zoneIdx];
+
+            while (propGroup.children.length > 0) {
+                propGroup.remove(propGroup.children[0]);
+            }
+            wellMeshes = [];
+            candyMeshes = [];
+            mothershipMesh = null;
+            mothershipBeamMesh = null;
+
+            // Ground Slab
+            const groundTex = createGroundTexture(zMeta.groundColor, zMeta.accentColor);
+            const ground = new THREE.Mesh(
+                new THREE.BoxGeometry(ARENA_HALF * 2, 0.5, ARENA_HALF * 2),
+                new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.88 })
+            );
+            ground.position.y = -0.25;
+            ground.receiveShadow = true;
+            propGroup.add(ground);
+
+            // Glowing Sector Border Frame
+            const border = new THREE.Mesh(
+                new THREE.EdgesGeometry(new THREE.BoxGeometry(ARENA_HALF * 2, 0.52, ARENA_HALF * 2)),
+                new THREE.LineBasicMaterial({ color: zMeta.accentColor })
+            );
+            border.position.y = -0.25;
+            propGroup.add(border);
+
+            // Landing Pad in Zone 0
+            if (zMeta.hasLandingPad) {
+                const pad = new THREE.Mesh(
+                    new THREE.CylinderGeometry(2.3, 2.5, 0.12, 24),
+                    new THREE.MeshStandardMaterial({
+                        color: 0x38bdf8,
+                        emissive: 0x0284c7,
+                        emissiveIntensity: 0.45,
+                        roughness: 0.4
+                    })
+                );
+                pad.position.set(0, 0.05, -1.2);
+                pad.receiveShadow = true;
+                propGroup.add(pad);
+
+                mothershipMesh = buildMothershipUFO();
+                mothershipMesh.position.set(0, 22, -1.2);
+                mothershipMesh.visible = false;
+                propGroup.add(mothershipMesh);
+            }
+
+            // Biome Scenery Props with Matching Colliders
+            zData.obstacles.forEach((obs) => {
+                let mesh;
+                if (obs.type === 'house') {
+                    mesh = buildSuburbHouse();
+                } else if (obs.type === 'crystal') {
+                    mesh = buildCrystalCluster(zMeta.accentColor);
+                } else {
+                    mesh = buildPineTree();
+                }
+                mesh.position.set(obs.x, 0, obs.z);
+                propGroup.add(mesh);
+            });
+
+            // Wells
+            zData.wells.forEach((well) => {
+                const wm = buildWellMesh(well);
+                wm.position.set(well.x, 0, well.z);
+                if (well.revealed) {
+                    applyWellBeaconColor(wm, well);
+                }
+                propGroup.add(wm);
+                wellMeshes.push(wm);
+            });
+
+            // Candies
+            zData.candies.forEach((c) => {
+                if (c.collected) return;
+                const cm = buildCandyMesh();
+                cm.position.set(c.x, 0, c.z);
+                propGroup.add(cm);
+                candyMeshes.push({ mesh: cm, data: c });
+            });
+
+            // Update enemy visibility for current zone
+            state.enemies.forEach((enemy, idx) => {
+                const em = enemyMeshes[idx];
+                if (!em) return;
+                em.visible = enemy.zone === zoneIdx;
+                em.position.set(enemy.x, 0, enemy.z);
+            });
+        }
+
+        function applyWellBeaconColor(wellMesh, well) {
+            const { glowCore, glowShaft, glowLight } = wellMesh.userData;
+            if (!glowCore || !glowShaft || !glowLight) return;
+
+            if (well.collected || !well.item) {
+                // Empty or already looted well emits no glow
+                wellMesh.userData.activeGlow = false;
+                wellMesh.userData.baseOpacity = 0;
+                glowCore.material.opacity = 0;
+                glowShaft.material.opacity = 0;
+                glowLight.intensity = 0;
+                return;
+            }
+
+            let hexColor = 0x38bdf8; // Blue for Reese's Pieces
+            if (well.item.startsWith('part')) {
+                hexColor = 0xfbbf24; // Gold for Phone Parts
+            } else if (well.item === 'geranium') {
+                hexColor = 0xf43f5e; // Rose-red for Revived Geranium
+            }
+
+            glowCore.material.color.setHex(hexColor);
+            glowShaft.material.color.setHex(hexColor);
+            glowLight.color.setHex(hexColor);
+
+            wellMesh.userData.activeGlow = true;
+            wellMesh.userData.baseOpacity = 0.34;
+            glowCore.material.opacity = 0.78;
+            glowShaft.material.opacity = 0.34;
+            glowLight.intensity = 1.6;
+        }
+
+        // ==========================================
+        // 5. SUBTERRANEAN MINI-DUNGEON & ACTIONS
+        // ==========================================
+        function enterWell(well) {
+            state.mode = 'WELL';
+            state.activeWell = well;
+            state.levitatingOut = false;
+            state.levitateProgress = 0;
+
+            worldGroup.visible = false;
+            wellGroup.visible = true;
+
+            while (wellGroup.children.length > 0) {
+                wellGroup.remove(wellGroup.children[0]);
+            }
+            dungeonObstacles = [];
+            dungeonSpikes = [];
+            dungeonLootMesh = null;
+
+            // Open-Top Cavern Floor (Zero foreground blocking walls)
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(11, 0.5, 16),
+                new THREE.MeshStandardMaterial({ color: 0x181c2e, roughness: 0.9 })
+            );
+            floor.position.y = -0.25;
+            floor.receiveShadow = true;
+            wellGroup.add(floor);
+
+            // Low Perimeter Stone Trim (Never blocks isometric camera view)
+            const trimMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+            const backTrim = new THREE.Mesh(new THREE.BoxGeometry(11.4, 0.45, 0.35), trimMat);
+            backTrim.position.set(0, 0.22, -8);
+            wellGroup.add(backTrim);
+
+            const frontTrim = new THREE.Mesh(new THREE.BoxGeometry(11.4, 0.45, 0.35), trimMat);
+            frontTrim.position.set(0, 0.22, 8);
+            wellGroup.add(frontTrim);
+
+            [-5.5, 5.5].forEach((sx) => {
+                const sideTrim = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.45, 16.3), trimMat);
+                sideTrim.position.set(sx, 0.22, 0);
+                wellGroup.add(sideTrim);
+            });
+
+            // Glowing Blue Exit Beam Pad at South Chamber Entrance (z = 5.6)
+            dungeonExitBeam = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.4, 1.4, 0.08, 24),
+                new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 })
+            );
+            dungeonExitBeam.position.set(0, 0.05, 5.6);
+            wellGroup.add(dungeonExitBeam);
+
+            const beamCol = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.2, 1.2, 7.5, 24, 1, true),
+                new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.12, side: THREE.DoubleSide })
+            );
+            beamCol.position.set(0, 3.8, 5.6);
+            wellGroup.add(beamCol);
+
+            // Jumpable Stone Platforms / Obstacles
+            const blockMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.75 });
+            const blocks = [
+                { x: -1.8, z: 2.2, w: 2.2, h: 0.75, d: 1.5 },
+                { x: 1.9, z: -0.8, w: 2.2, h: 0.85, d: 1.5 }
+            ];
+            blocks.forEach((b) => {
+                const bm = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), blockMat);
+                bm.position.set(b.x, b.h * 0.5, b.z);
+                bm.castShadow = true;
+                bm.receiveShadow = true;
+                wellGroup.add(bm);
+                dungeonObstacles.push(b);
+            });
+
+            // Crimson Crystal Spikes to Avoid or Vault Over
+            const spikeMat = new THREE.MeshStandardMaterial({
+                color: 0xf43f5e,
+                emissive: 0xe11d48,
+                emissiveIntensity: 0.55,
+                roughness: 0.25
+            });
+            const spikeCoords = [
+                { x: 1.6, z: 2.3 },
+                { x: -1.6, z: -1.0 },
+                { x: 0.0, z: -3.2 }
+            ];
+            spikeCoords.forEach((sc) => {
+                const sg = new THREE.Group();
+                for (let s = -1; s <= 1; s++) {
+                    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.85, 6), spikeMat);
+                    cone.position.set(s * 0.32, 0.42, (s % 2) * 0.18);
+                    sg.add(cone);
+                }
+                sg.position.set(sc.x, 0, sc.z);
+                wellGroup.add(sg);
+                dungeonSpikes.push({ x: sc.x, z: sc.z, r: 0.65 });
+            });
+
+            // Collectible Pedestal in North Chamber (z = -5.8)
+            const pedestal = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.85, 1.0, 0.55, 18),
+                new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6 })
+            );
+            pedestal.position.set(0, 0.275, -5.8);
+            pedestal.receiveShadow = true;
+            wellGroup.add(pedestal);
+
+            if (well.item && !well.collected) {
+                dungeonLootMesh = buildCollectibleModel(well.item);
+                dungeonLootMesh.position.set(0, 1.05, -5.8);
+                wellGroup.add(dungeonLootMesh);
+            }
+
+            // Spawn E.T. on the Entrance Pad
+            state.player.x = 0;
+            state.player.y = 0;
+            state.player.z = 5.6;
+            state.player.vy = 0;
+            state.player.grounded = true;
+            state.player.facing = Math.PI;
+
+            well.revealed = true;
+            audio.playTone('A3', '8n');
+            showToast(
+                well.item && !well.collected
+                    ? 'Subterranean chamber entered! Vault obstacles to reach the pedestal.'
+                    : 'An empty subterranean chamber. Step into the blue exit beam and press [SPACE].',
+                'border-sky-400'
+            );
+            updateHUD();
+        }
+
+        function startLevitationExit() {
+            if (state.levitatingOut || !state.activeWell) return;
+            state.levitatingOut = true;
+            state.levitateProgress = 0;
+            state.levitateStart = { x: state.player.x, y: state.player.y, z: state.player.z };
+            state.neckTarget = 1.0;
+            state.fingerGlow = 1.4;
+            audio.playTelepathy();
+        }
+
+        function finishExitWell() {
+            const well = state.activeWell;
+            state.mode = 'OVERWORLD';
+            state.levitatingOut = false;
+            state.levitateProgress = 0;
+            state.neckTarget = 0;
+
+            wellGroup.visible = false;
+            worldGroup.visible = true;
+
+            // Place E.T. cleanly outside the well rim so he never falls straight back in
+            const safeAngle = Math.PI * 0.5;
+            state.player.x = Math.max(-ARENA_HALF + 1.2, Math.min(ARENA_HALF - 1.2, well.x));
+            state.player.z = Math.max(-ARENA_HALF + 1.2, Math.min(ARENA_HALF - 1.2, well.z + well.r + 0.95));
+            state.player.y = 0;
+            state.player.vy = 0;
+            state.player.grounded = true;
+            state.player.invuln = 1.2;
+
+            loadZoneScene(state.currentZone);
+            state.activeWell = null;
+            updateHUD();
+        }
+
+        function triggerTelepathy() {
+            if (state.mode === 'MENU' || state.mode === 'MOTHERSHIP' || state.mode === 'VICTORY' || state.mode === 'GAMEOVER') return;
+
+            if (state.mode === 'WELL') {
+                if (state.levitatingOut) return;
+                const distToExit = Math.hypot(state.player.x - 0, state.player.z - 5.6);
+                if (distToExit < 1.65) {
+                    startLevitationExit();
+                    return;
+                }
+                if (state.player.grounded) {
+                    state.player.vy = 7.4;
+                    state.player.grounded = false;
+                    audio.playJump();
+                }
+                return;
+            }
+
+            // Overworld: Check if standing on Landing Pad with all 3 phone parts
+            const allPartsFound = state.partsCollected.every(Boolean);
+            const distToPad = Math.hypot(state.player.x - 0, state.player.z - (-1.2));
+            if (state.currentZone === 0 && allPartsFound && distToPad < 2.6) {
+                startMothershipLanding();
+                return;
+            }
+
+            // Otherwise perform Telepathic Neck-Stretch Radar Scan
+            state.neckTarget = 1.0;
+            state.fingerGlow = 1.2;
+            state.energy = Math.max(0, state.energy - 18);
+            audio.playTelepathy();
+
+            const zData = state.zonesData[state.currentZone];
+            let foundSignal = false;
+            zData.wells.forEach((well, idx) => {
+                const dist = Math.hypot(state.player.x - well.x, state.player.z - well.z);
+                if (dist < 7.5) {
+                    well.revealed = true;
+                    if (wellMeshes[idx]) {
+                        applyWellBeaconColor(wellMeshes[idx], well);
+                    }
+                    foundSignal = true;
+                }
+            });
+
+            setTimeout(() => {
+                if (state.mode === 'OVERWORLD') state.neckTarget = 0;
+            }, 900);
+
+            showToast(
+                foundSignal
+                    ? 'Telepathic scan revealed well signatures (Gold=Phone Part, Blue=Reese’s Pieces).'
+                    : 'No wells within telepathic range. Move closer to a crater rim.',
+                'border-sky-400'
+            );
+            updateHUD();
+        }
+
+        function eatCandy() {
+            if (state.mode === 'MENU' || state.mode === 'MOTHERSHIP' || state.mode === 'VICTORY' || state.mode === 'GAMEOVER') return;
+            if (state.candy <= 0) {
+                showToast('No Reese’s Pieces left! Collect more in the forest or wells.', 'border-rose-400');
+                return;
+            }
+
+            state.candy -= 1;
+            state.energy = Math.min(state.maxEnergy, state.energy + 850);
+            state.fingerGlow = 0.8;
+            audio.playPickup();
+
+            // Also distracts any nearby agent in the current sector
+            let distracted = false;
+            state.enemies.forEach((e) => {
+                if (e.zone === state.currentZone && Math.hypot(e.x - state.player.x, e.z - state.player.z) < 6.5) {
+                    e.stunTimer = 5.0;
+                    distracted = true;
+                }
+            });
+
+            showToast(
+                distracted
+                    ? 'Ate Reese’s Piece (+850 Heartlight) & distracted nearby agent!'
+                    : 'Ate Reese’s Piece! Heartlight restored (+850).',
+                'border-amber-400'
+            );
+            updateHUD();
+        }
+
+        function triggerRescueOrGameOver() {
+            if (!state.rescuedOnce) {
+                state.rescuedOnce = true;
+                state.energy = 4500;
+                state.player.invuln = 3.0;
+                if (state.mode === 'WELL') {
+                    finishExitWell();
+                }
+                audio.playPartFound();
+                showToast('Elliott arrived with a blanket and revived E.T.’s Heartlight! (1-Time Rescue)', 'border-emerald-400');
+                updateHUD();
+                return;
+            }
+
+            state.mode = 'GAMEOVER';
+            audio.playHurt();
+            document.getElementById('modalTitle').textContent = 'HEARTLIGHT FADED';
+            document.getElementById('modalSubtitle').textContent =
+                'E.T.’s energy ran out before reaching the mothership. Collect Reese’s Pieces to keep your Heartlight glowing!';
+            document.getElementById('startBtn').textContent = 'TRY AGAIN';
+            document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+
+        function triggerVictory() {
+            state.mode = 'VICTORY';
+            audio.playVictory();
+            document.getElementById('modalTitle').textContent = 'E.T. PHONED HOME!';
+            document.getElementById('modalSubtitle').textContent =
+                `You assembled the interplanetary communicator and signaled the mothership with ${Math.ceil(state.energy)} Heartlight remaining!`;
+            document.getElementById('startBtn').textContent = 'PLAY AGAIN';
+            document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+
+        function startMothershipLanding() {
+            if (state.mode === 'MOTHERSHIP') return;
+            state.mode = 'MOTHERSHIP';
+            state.mothershipTimer = 0;
+            state.mothershipStartPos = { x: state.player.x, z: state.player.z };
+            state.neckTarget = 1.0;
+            state.fingerGlow = 2.5;
+            document.getElementById('actionPrompt').classList.add('opacity-0');
+
+            state.enemies.forEach((e, idx) => {
+                if (enemyMeshes[idx]) enemyMeshes[idx].visible = false;
+            });
+
+            if (mothershipMesh) {
+                mothershipMesh.visible = true;
+                mothershipMesh.position.set(0, 20, -1.2);
+            }
+            if (mothershipBeamMesh) {
+                mothershipBeamMesh.material.opacity = 0;
+            }
+
+            audio.playVictory();
+            showToast('Interplanetary signal locked! The Mothership is descending to the Landing Pad!', 'border-amber-300');
+            updateHUD();
+        }
+
+        // ==========================================
+        // 6. SIMULATION & ANIMATION UPDATE LOOP
+        // ==========================================
+        function resolveOverworldCollisions(pos, radius, zoneIdx) {
+            const zData = state.zonesData[zoneIdx];
+            if (!zData) return;
+
+            zData.obstacles.forEach((obs) => {
+                if (obs.type === 'house') {
+                    const minX = obs.x - obs.halfW - radius;
+                    const maxX = obs.x + obs.halfW + radius;
+                    const minZ = obs.z - obs.halfD - radius;
+                    const maxZ = obs.z + obs.halfD + radius;
+
+                    if (pos.x > minX && pos.x < maxX && pos.z > minZ && pos.z < maxZ) {
+                        const penLeft = Math.abs(pos.x - minX);
+                        const penRight = Math.abs(maxX - pos.x);
+                        const penTop = Math.abs(pos.z - minZ);
+                        const penBottom = Math.abs(maxZ - pos.z);
+                        const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+
+                        if (minPen === penLeft) pos.x = minX;
+                        else if (minPen === penRight) pos.x = maxX;
+                        else if (minPen === penTop) pos.z = minZ;
+                        else pos.z = maxZ;
+                    }
+                } else {
+                    const dx = pos.x - obs.x;
+                    const dz = pos.z - obs.z;
+                    const dist = Math.hypot(dx, dz);
+                    const minDist = obs.r + radius;
+                    if (dist < minDist) {
+                        const nx = dist > 0.0001 ? dx / dist : 1;
+                        const nz = dist > 0.0001 ? dz / dist : 0;
+                        pos.x = obs.x + nx * minDist;
+                        pos.z = obs.z + nz * minDist;
+                    }
+                }
+            });
+        }
+
+        function update(dt) {
+            // Smooth neck & glowing fingertip animation
+            state.neckStretch += (state.neckTarget - state.neckStretch) * Math.min(1, dt * 8);
+            if (etNeckGroup) {
+                etNeckGroup.position.y = 1.05 + state.neckStretch * 0.42;
+            }
+
+            if (state.fingerGlow > 0) {
+                state.fingerGlow = Math.max(0, state.fingerGlow - dt);
+                etFingerOrb.visible = true;
+                etFingerLight.intensity = state.fingerGlow * 2.4;
+            } else if (etFingerOrb) {
+                etFingerOrb.visible = false;
+                etFingerLight.intensity = 0;
+            }
+
+            // Cinematic UFO Landing, Tractor Beam Boarding & Liftoff Sequence
+            if (state.mode === 'MOTHERSHIP') {
+                state.mothershipTimer += dt;
+                const t = state.mothershipTimer;
+
+                if (mothershipMesh) {
+                    mothershipMesh.rotation.y += dt * 1.4;
+                }
+
+                if (t < 2.2) {
+                    const p = t / 2.2;
+                    const easeOut = 1 - Math.pow(1 - p, 3);
+                    if (mothershipMesh) {
+                        mothershipMesh.position.y = 20 - easeOut * (20 - 1.65);
+                    }
+                    if (mothershipBeamMesh && p > 0.55) {
+                        mothershipBeamMesh.material.opacity = ((p - 0.55) / 0.45) * 0.28;
+                    }
+                    etMesh.position.set(state.player.x, 0, state.player.z);
+                    etMesh.rotation.y = Math.atan2(-state.player.x, -1.2 - state.player.z);
+                } else if (t < 3.8) {
+                    const p = (t - 2.2) / 1.6;
+                    const ease = p * p * (3 - 2 * p);
+                    if (mothershipMesh) {
+                        mothershipMesh.position.y = 1.65 + Math.sin(t * 6) * 0.05;
+                    }
+                    if (mothershipBeamMesh) {
+                        mothershipBeamMesh.material.opacity = 0.28 * (1 - p * 0.4);
+                    }
+                    const bx = state.mothershipStartPos.x * (1 - ease);
+                    const bz = state.mothershipStartPos.z + (-1.2 - state.mothershipStartPos.z) * ease;
+                    const by = ease * 1.85;
+                    etMesh.position.set(bx, by, bz);
+                    etMesh.rotation.y += dt * 4.5;
+                    const shrink = Math.max(0.05, 1 - ease * 0.85);
+                    etMesh.scale.setScalar(shrink);
+                } else if (t < 5.4) {
+                    const p = (t - 3.8) / 1.6;
+                    const easeIn = p * p * p;
+                    etMesh.visible = false;
+                    etMesh.scale.setScalar(1);
+                    if (mothershipBeamMesh) {
+                        mothershipBeamMesh.material.opacity = 0;
+                    }
+                    if (mothershipMesh) {
+                        mothershipMesh.position.y = 1.65 + easeIn * 24;
+                        mothershipMesh.rotation.y += dt * 3.5;
+                    }
+                } else {
+                    etMesh.visible = true;
+                    etMesh.scale.setScalar(1);
+                    triggerVictory();
+                }
+                return;
+            }
+
+            if (state.mode !== 'OVERWORLD' && state.mode !== 'WELL') {
+                if (etMesh) {
+                    etMesh.position.y = Math.sin(performance.now() * 0.003) * 0.06;
+                }
+                return;
+            }
+
+            if (state.player.invuln > 0) {
+                state.player.invuln = Math.max(0, state.player.invuln - dt);
+            }
+
+            // Smooth Continuous Levitation Ascent out of Well
+            if (state.mode === 'WELL' && state.levitatingOut) {
+                state.levitateProgress += dt / 1.25;
+                const p = Math.min(1, state.levitateProgress);
+                const ease = p * p * (3 - 2 * p);
+                state.player.x = state.levitateStart.x * (1 - ease);
+                state.player.z = state.levitateStart.z + (5.6 - state.levitateStart.z) * ease;
+                state.player.y = state.levitateStart.y + ease * 7.8;
+
+                etMesh.position.set(state.player.x, state.player.y, state.player.z);
+                etMesh.rotation.y += dt * 3.2;
+
+                if (p >= 1) {
+                    finishExitWell();
+                }
+                return;
+            }
+
+            // Camera-Aligned Isometric Input Vector
+            let rawX = 0;
+            let rawZ = 0;
+            if (keys['KeyW'] || keys['ArrowUp']) rawZ -= 1;
+            if (keys['KeyS'] || keys['ArrowDown']) rawZ += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) rawX -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) rawX += 1;
+
+            const sprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+            const moveSpeed = sprinting ? 6.8 : 4.6;
+            const len = Math.hypot(rawX, rawZ);
+
+            if (len > 0) {
+                const nx = rawX / len;
+                const nz = rawZ / len;
+                // Rotate input by -45 deg so Up moves toward top-left of isometric screen cleanly
+                const cosA = Math.cos(-FIXED_ISO_YAW);
+                const sinA = Math.sin(-FIXED_ISO_YAW);
+                const wx = nx * cosA - nz * sinA;
+                const wz = nx * sinA + nz * cosA;
+
+                state.player.x += wx * moveSpeed * dt;
+                state.player.z += wz * moveSpeed * dt;
+                state.player.facing = Math.atan2(wx, wz);
+                state.player.walkPhase += dt * (sprinting ? 14 : 10);
+
+                // Heartlight energy drain on movement
+                state.energy = Math.max(0, state.energy - (sprinting ? 16 : 8) * dt);
+            } else {
+                state.energy = Math.max(0, state.energy - 2.5 * dt);
+            }
+
+            // Character Waddle & Limb Animation
+            const swing = len > 0 ? Math.sin(state.player.walkPhase) * 0.42 : 0;
+            if (etLeftLeg && etRightLeg && etLeftArm && etRightArm) {
+                etLeftLeg.rotation.x = swing;
+                etRightLeg.rotation.x = -swing;
+                etLeftArm.rotation.x = -swing * 0.8;
+                etRightArm.rotation.x = swing * 0.8;
+            }
+
+            // Heartlight pulse
+            const pulse = 1 + Math.sin(performance.now() * 0.008) * 0.15;
+            if (etHeartMesh) etHeartMesh.scale.setScalar(pulse);
+
+            if (state.mode === 'OVERWORLD') {
+                // Solid Environmental Collisions
+                resolveOverworldCollisions(state.player, 0.48, state.currentZone);
+
+                // 6-Zone Seamless Edge Transitions
+                const links = ZONE_LINKS[state.currentZone];
+                let transitioned = false;
+                if (state.player.z < -ARENA_HALF) {
+                    state.currentZone = links.N;
+                    state.player.z = ARENA_HALF - 0.8;
+                    transitioned = true;
+                } else if (state.player.z > ARENA_HALF) {
+                    state.currentZone = links.S;
+                    state.player.z = -ARENA_HALF + 0.8;
+                    transitioned = true;
+                } else if (state.player.x > ARENA_HALF) {
+                    state.currentZone = links.E;
+                    state.player.x = -ARENA_HALF + 0.8;
+                    transitioned = true;
+                } else if (state.player.x < -ARENA_HALF) {
+                    state.currentZone = links.W;
+                    state.player.x = ARENA_HALF - 0.8;
+                    transitioned = true;
+                }
+
+                if (transitioned) {
+                    loadZoneScene(state.currentZone);
+                    buildMiniMap();
+                    showToast(`Entered ${ZONES[state.currentZone].name}`, 'border-amber-400');
+                }
+
+                const zData = state.zonesData[state.currentZone];
+
+                // Candy Pickups
+                candyMeshes.forEach((cmObj) => {
+                    if (cmObj.data.collected) return;
+                    cmObj.mesh.rotation.y += dt * 2.2;
+                    if (Math.hypot(state.player.x - cmObj.data.x, state.player.z - cmObj.data.z) < 0.95) {
+                        cmObj.data.collected = true;
+                        cmObj.mesh.visible = false;
+                        state.candy += 1;
+                        audio.playPickup();
+                        showToast('Picked up a Reese’s Piece! Press [E] to eat.', 'border-orange-400');
+                    }
+                });
+
+                // Well Pit Entry Check & Volumetric Glow Shimmer
+                const nowSec = performance.now() * 0.004;
+                let nearWell = false;
+                for (let idx = 0; idx < zData.wells.length; idx++) {
+                    const well = zData.wells[idx];
+                    const wm = wellMeshes[idx];
+                    if (wm && wm.userData && wm.userData.activeGlow) {
+                        const pulse = 0.85 + Math.sin(nowSec + idx) * 0.15;
+                        wm.userData.glowShaft.material.opacity = wm.userData.baseOpacity * pulse;
+                        wm.userData.glowLight.intensity = 1.5 * pulse;
+                    }
+
+                    const distToWell = Math.hypot(state.player.x - well.x, state.player.z - well.z);
+                    if (distToWell < well.r + 2.4) {
+                        nearWell = true;
+                    }
+                    // Enter subterranean mini-dungeon when E.T.'s center steps into the well pit
+                    if (state.player.invuln <= 0 && distToWell < well.r * 0.72) {
+                        enterWell(well);
+                        return;
+                    }
+                }
+
+                // FBI Agent & Government Scientist Patrol / Chase & Interaction Loop
+                state.enemies.forEach((enemy, idx) => {
+                    const em = enemyMeshes[idx];
+                    if (enemy.stunTimer > 0) {
+                        enemy.stunTimer = Math.max(0, enemy.stunTimer - dt);
+                        if (em && em.visible) {
+                            em.rotation.y += dt * 4.0;
+                        }
+                        return;
+                    }
+
+                    if (enemy.zone === state.currentZone) {
+                        const dx = state.player.x - enemy.x;
+                        const dz = state.player.z - enemy.z;
+                        const dist = Math.hypot(dx, dz);
+
+                        if (dist > 0.01) {
+                            enemy.x += (dx / dist) * enemy.speed * dt;
+                            enemy.z += (dz / dist) * enemy.speed * dt;
+                        }
+                        resolveOverworldCollisions(enemy, 0.5, state.currentZone);
+
+                        if (em) {
+                            em.visible = true;
+                            em.position.set(enemy.x, 0, enemy.z);
+                            em.rotation.y = Math.atan2(dx, dz);
+                        }
+
+                        // Agent Contact Interaction
+                        if (dist < 0.95 && state.player.invuln <= 0) {
+                            state.player.invuln = 2.0;
+                            if (enemy.type === 'fbi') {
+                                // FBI Agent confiscates Reese's Pieces & drains Heartlight
+                                const lostCandy = Math.min(state.candy, 2);
+                                state.candy -= lostCandy;
+                                state.energy = Math.max(0, state.energy - 800);
+                                audio.playHurt();
+                                showToast(
+                                    lostCandy > 0
+                                        ? `Agent Keys confiscated ${lostCandy} Reese’s Piece(s) & drained 800 Heartlight!`
+                                        : 'Agent Keys caught E.T.! (-800 Heartlight)',
+                                    'border-rose-500'
+                                );
+                            } else {
+                                // Government Scientist drains Heartlight and relocates E.T. back toward sector center
+                                state.energy = Math.max(0, state.energy - 1100);
+                                state.player.x = 0;
+                                state.player.z = 3.2;
+                                audio.playHurt();
+                                showToast('Dr. Vance captured E.T. for examination! (-1100 Heartlight)', 'border-rose-500');
+                            }
+                            enemy.stunTimer = 2.5;
+                            buildMiniMap();
+                        }
+                    } else {
+                        // Wander across adjacent sectors periodically
+                        enemy.phase += dt * 0.22;
+                        if (enemy.phase > Math.PI * 2) {
+                            enemy.phase = 0;
+                            const dirs = ['N', 'E', 'S', 'W'];
+                            const nextDir = dirs[Math.floor(Math.random() * dirs.length)];
+                            enemy.zone = ZONE_LINKS[enemy.zone][nextDir];
+                            enemy.x = (Math.random() - 0.5) * 10;
+                            enemy.z = (Math.random() - 0.5) * 10;
+                            buildMiniMap();
+                        }
+                        if (em) em.visible = false;
+                    }
+                });
+
+                // Context Prompt on Landing Pad or Near Wells
+                const promptEl = document.getElementById('actionPrompt');
+                const allParts = state.partsCollected.every(Boolean);
+                const nearPad = state.currentZone === 0 && Math.hypot(state.player.x, state.player.z + 1.2) < 2.6;
+                if (allParts && nearPad) {
+                    promptEl.textContent = 'Press [SPACE] to Signal Mothership!';
+                    promptEl.classList.remove('opacity-0');
+                } else if (nearWell) {
+                    promptEl.textContent = 'Press [SPACE] to Scan Well • Step in to Descend';
+                    promptEl.classList.remove('opacity-0');
+                } else {
+                    promptEl.classList.add('opacity-0');
+                }
+            } else if (state.mode === 'WELL') {
+                // Clamp inside Open-Top Subterranean Chamber
+                state.player.x = Math.max(-4.8, Math.min(4.8, state.player.x));
+                state.player.z = Math.max(-7.2, Math.min(7.2, state.player.z));
+
+                // Gravity & Jump Physics
+                state.player.vy -= 18.5 * dt;
+                state.player.y += state.player.vy * dt;
+
+                let floorHeight = 0;
+                // Jumpable Stone Platforms & Solid Side Collision
+                dungeonObstacles.forEach((b) => {
+                    const minX = b.x - b.w * 0.5 - 0.35;
+                    const maxX = b.x + b.w * 0.5 + 0.35;
+                    const minZ = b.z - b.d * 0.5 - 0.35;
+                    const maxZ = b.z + b.d * 0.5 + 0.35;
+
+                    if (state.player.x > minX && state.player.x < maxX && state.player.z > minZ && state.player.z < maxZ) {
+                        if (state.player.y >= b.h - 0.18) {
+                            floorHeight = Math.max(floorHeight, b.h);
+                        } else {
+                            const penLeft = Math.abs(state.player.x - minX);
+                            const penRight = Math.abs(maxX - state.player.x);
+                            const penTop = Math.abs(state.player.z - minZ);
+                            const penBottom = Math.abs(maxZ - state.player.z);
+                            const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+                            if (minPen === penLeft) state.player.x = minX;
+                            else if (minPen === penRight) state.player.x = maxX;
+                            else if (minPen === penTop) state.player.z = minZ;
+                            else state.player.z = maxZ;
+                        }
+                    }
+                });
+
+                // Solid Pedestal Collision
+                const pedDist = Math.hypot(state.player.x - 0, state.player.z - (-5.8));
+                if (pedDist < 1.15) {
+                    const nx = pedDist > 0.001 ? state.player.x / pedDist : 0;
+                    const nz = pedDist > 0.001 ? (state.player.z + 5.8) / pedDist : 1;
+                    state.player.x = nx * 1.15;
+                    state.player.z = -5.8 + nz * 1.15;
+                }
+
+                if (state.player.y <= floorHeight) {
+                    state.player.y = floorHeight;
+                    state.player.vy = 0;
+                    state.player.grounded = true;
+                }
+
+                // Spikes Hazard Check
+                if (state.player.y < 0.55 && state.player.invuln <= 0) {
+                    for (const sp of dungeonSpikes) {
+                        if (Math.hypot(state.player.x - sp.x, state.player.z - sp.z) < sp.r) {
+                            state.player.invuln = 1.4;
+                            state.energy = Math.max(0, state.energy - 650);
+                            state.player.vy = 5.5;
+                            state.player.grounded = false;
+                            audio.playHurt();
+                            showToast('Ouch! Crystal spikes drained 650 Heartlight!', 'border-rose-500');
+                            break;
+                        }
+                    }
+                }
+
+                // Collectible Pedestal Pickup
+                const well = state.activeWell;
+                if (well && well.item && !well.collected && dungeonLootMesh) {
+                    dungeonLootMesh.rotation.y += dt * 1.8;
+                    dungeonLootMesh.position.y = 1.05 + Math.sin(performance.now() * 0.004) * 0.12;
+
+                    if (Math.hypot(state.player.x - 0, state.player.z - (-5.8)) < 1.55) {
+                        well.collected = true;
+                        dungeonLootMesh.visible = false;
+
+                        if (well.item === 'part0') {
+                            state.partsCollected[0] = true;
+                            audio.playPartFound();
+                            showToast('Recovered Phone Piece #1: Speak & Spell Console!', 'border-sky-400');
+                        } else if (well.item === 'part1') {
+                            state.partsCollected[1] = true;
+                            audio.playPartFound();
+                            showToast('Recovered Phone Piece #2: Coffee-Can Dish Antenna!', 'border-sky-400');
+                        } else if (well.item === 'part2') {
+                            state.partsCollected[2] = true;
+                            audio.playPartFound();
+                            showToast('Recovered Phone Piece #3: Rotary Signal Emitter!', 'border-sky-400');
+                        } else if (well.item === 'geranium') {
+                            state.hasGeranium = true;
+                            state.energy = Math.min(state.maxEnergy, state.energy + 2500);
+                            audio.playPartFound();
+                            showToast('Found the Revived Geranium! (+2500 Heartlight)', 'border-rose-400');
+                        } else if (well.item === 'candy') {
+                            state.candy += 3;
+                            audio.playPickup();
+                            showToast('Found a stash of 3 Reese’s Pieces!', 'border-amber-400');
+                        }
+
+                        if (state.partsCollected.every(Boolean)) {
+                            setTimeout(() => {
+                                showToast('All 3 Phone Pieces assembled! Return to Zone 1 Landing Pad!', 'border-amber-300');
+                            }, 1600);
+                        }
+                    }
+                }
+
+                // Exit Beam Prompt
+                const promptEl = document.getElementById('actionPrompt');
+                if (Math.hypot(state.player.x - 0, state.player.z - 5.6) < 1.65) {
+                    promptEl.textContent = 'Press [SPACE] to Levitate Out of Well';
+                    promptEl.classList.remove('opacity-0');
+                } else {
+                    promptEl.textContent = 'Press [SPACE] to Jump';
+                    promptEl.classList.remove('opacity-0');
+                }
+            }
+
+            // Sync E.T. 3D Transform
+            if (etMesh) {
+                etMesh.position.set(state.player.x, state.player.y, state.player.z);
+                etMesh.rotation.y = state.player.facing;
+                etMesh.visible = state.player.invuln > 0 ? Math.floor(state.player.invuln * 14) % 2 === 0 : true;
+            }
+
+            if (state.energy <= 0) {
+                triggerRescueOrGameOver();
+            }
+
+            updateHUD();
+        }
+
+        // ==========================================
+        // 7. HUD, MINI-MAP & TOAST NOTIFICATIONS
+        // ==========================================
+        let toastTimeout = null;
+        function showToast(msg, borderClass = 'border-amber-400') {
+            const box = document.getElementById('toastBox');
+            const text = document.getElementById('toastMessage');
+            text.textContent = msg;
+            box.className = `absolute top-24 sm:top-20 left-3 sm:left-4 max-w-xs glass-hud border-l-4 ${borderClass} text-amber-50 px-3.5 py-2 rounded-xl text-xs transform translate-x-0 opacity-100 transition-all duration-300 pointer-events-none z-10`;
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                box.classList.add('-translate-x-[120%]', 'opacity-0');
+                box.classList.remove('translate-x-0', 'opacity-100');
+            }, 3400);
+        }
+
+        function buildMiniMap() {
+            const map = document.getElementById('miniMap');
+            if (!map) return;
+            map.innerHTML = '';
+
+            // Ego-centric Isometric Cross:
+            // When rotated +45deg clockwise:
+            // [0,0] Top-Left = North (Up-Left on screen)
+            // [0,1] Top-Right = East (Up-Right on screen)
+            // [1,0] Bottom-Left = West (Down-Left on screen)
+            // [1,1] Center = Current Sector
+            // [2,1] Bottom-Right = South (Down-Right on screen)
+            const cur = state.currentZone;
+            const links = ZONE_LINKS[cur];
+            const cells = [
+                { zId: links.N, dir: 'N' },
+                { zId: links.E, dir: 'E' },
+                { zId: null, dir: '' },
+                { zId: links.W, dir: 'W' },
+                { zId: cur, dir: 'CUR' },
+                { zId: null, dir: '' },
+                { zId: null, dir: '' },
+                { zId: links.S, dir: 'S' },
+                { zId: null, dir: '' }
+            ];
+
+            cells.forEach((slot) => {
+                const cell = document.createElement('div');
+                if (slot.zId === null) {
+                    cell.className = 'opacity-0 pointer-events-none';
+                    map.appendChild(cell);
+                    return;
+                }
+
+                const isCurrent = slot.dir === 'CUR';
+                const hasEnemy = state.enemies.some((e) => e.zone === slot.zId);
+                const hasUncollectedPart = state.zonesData[slot.zId]?.wells.some(
+                    (w) => w.revealed && !w.collected && w.item && w.item.startsWith('part')
+                );
+
+                cell.className = `rounded border flex items-center justify-center text-[8px] font-mono transition-all ${
+                    isCurrent
+                        ? 'bg-amber-400/45 border-amber-200 text-amber-50 font-bold shadow-[0_0_10px_rgba(251,191,36,0.75)] scale-105'
+                        : hasEnemy
+                            ? 'bg-rose-950/75 border-rose-400/70 text-rose-300'
+                            : hasUncollectedPart
+                                ? 'bg-sky-950/75 border-sky-400/70 text-sky-300'
+                                : 'bg-slate-950/80 border-slate-600/70 text-slate-300'
+                }`;
+
+                // Counter-rotate label -45deg so sector number stays upright inside the diamond
+                const label = document.createElement('span');
+                label.className = '-rotate-45 block leading-none';
+                label.textContent = hasEnemy && !isCurrent ? `!${slot.zId + 1}` : `${slot.zId + 1}`;
+                cell.appendChild(label);
+                map.appendChild(cell);
+            });
+        }
+
+        function updateHUD() {
+            const zoneMeta = ZONES[state.currentZone];
+            document.getElementById('zoneLabel').textContent =
+                state.mode === 'MOTHERSHIP'
+                    ? 'Landing Pad: Mothership Arrival'
+                    : state.mode === 'WELL'
+                        ? `Subterranean Well (${zoneMeta.name})`
+                        : `Zone ${state.currentZone + 1}: ${zoneMeta.name}`;
+
+            const energyVal = Math.ceil(state.energy);
+            document.getElementById('energyText').textContent = String(energyVal).padStart(4, '0');
+            document.getElementById('energyBar').style.width = `${Math.max(0, Math.min(100, (state.energy / state.maxEnergy) * 100))}%`;
+            document.getElementById('candyCount').textContent = state.candy;
+
+            [0, 1, 2].forEach((i) => {
+                const el = document.getElementById(`part${i + 1}`);
+                if (!el) return;
+                if (state.partsCollected[i]) {
+                    el.className = 'w-2.5 h-2.5 rounded-sm bg-sky-400 border border-amber-200 shadow-[0_0_8px_#38bdf8] transition-all';
+                } else {
+                    el.className = 'w-2.5 h-2.5 rounded-sm bg-slate-800 border border-slate-600 transition-all';
+                }
+            });
+        }
+
+        // ==========================================
+        // 8. AUTOMATED UNIT TEST & DIAGNOSTICS SUITE
+        // ==========================================
+        function runUnitTests() {
+            const panel = document.getElementById('testPanel');
+            const list = document.getElementById('testResultsList');
+            const badge = document.getElementById('testSummaryBadge');
+            panel.classList.remove('hidden');
+            list.innerHTML = '';
+
+            const results = [];
+            const assert = (name, cond, detail = '') => {
+                results.push({ name, pass: Boolean(cond), detail });
+            };
+
+            try {
+                assert('Three.js Scene & Orthographic Camera', scene && camera && camera.isOrthographicCamera, 'Fixed 45° ISO');
+                assert('6-Zone Cube Topology Links', Object.keys(ZONE_LINKS).length === 6 && ZONE_LINKS[0].N === 2, 'All 6 sectors linked');
+
+                const allWells = state.zonesData.flatMap((z) => z.wells);
+                const partWells = allWells.filter((w) => w.item && w.item.startsWith('part'));
+                const emptyWells = allWells.filter((w) => !w.item);
+                assert('Randomized Well Distribution', partWells.length === 3 && emptyWells.length >= 6, `${partWells.length} parts, ${emptyWells.length} empty`);
+
+                const prevCandy = state.candy;
+                const prevEnergy = state.energy;
+                state.candy = 1;
+                state.energy = 5000;
+                eatCandy();
+                assert('Reese’s Piece Energy Restore', state.candy === 0 && state.energy === 5850, '+850 Heartlight');
+                state.candy = prevCandy;
+                state.energy = prevEnergy;
+                updateHUD();
+
+                const gameBox = document.querySelector('main').getBoundingClientRect();
+                const hudPill = document.getElementById('zoneLabel').closest('.glass-hud').getBoundingClientRect();
+                assert('UI Contained Inside Game Screen', hudPill.left >= gameBox.left && hudPill.top >= gameBox.top, 'Within viewport');
+
+                assert('Mothership UFO Builder', typeof buildMothershipUFO === 'function', 'Saucer + Tractor Beam ready');
+            } catch (err) {
+                assert('Unexpected Exception', false, err.message);
+            }
+
+            const passed = results.filter((r) => r.pass).length;
+            badge.textContent = `${passed}/${results.length} PASS`;
+            badge.className = `px-2 py-0.5 rounded font-mono text-[10px] ${
+                passed === results.length ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' : 'bg-rose-950 text-rose-300'
+            }`;
+
+            results.forEach((r) => {
+                const row = document.createElement('div');
+                row.className = `p-2 rounded-lg border ${
+                    r.pass ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200' : 'bg-rose-950/40 border-rose-500/40 text-rose-200'
+                }`;
+                row.innerHTML = `<div class="flex justify-between font-bold"><span>${r.pass ? '✓' : '✕'} ${r.name}</span><span>${r.pass ? 'OK' : 'FAIL'}</span></div><div class="text-[10px] opacity-80">${r.detail}</div>`;
+                list.appendChild(row);
+            });
+        }
+
+        // ==========================================
+        // 9. INPUT BINDINGS & MAIN ANIMATION LOOP
+        // ==========================================
+        function bindControls() {
+            window.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    triggerTelepathy();
+                } else if (e.code === 'KeyE') {
+                    eatCandy();
+                } else if (e.code === 'KeyT') {
+                    runUnitTests();
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+            });
+
+            const bindHold = (id, code) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const setDown = (ev) => {
+                    ev.preventDefault();
+                    keys[code] = true;
+                };
+                const setUp = (ev) => {
+                    ev.preventDefault();
+                    keys[code] = false;
+                };
+                el.addEventListener('mousedown', setDown);
+                el.addEventListener('mouseup', setUp);
+                el.addEventListener('mouseleave', setUp);
+                el.addEventListener('touchstart', setDown, { passive: false });
+                el.addEventListener('touchend', setUp, { passive: false });
+            };
+
+            bindHold('btnUp', 'ArrowUp');
+            bindHold('btnDown', 'ArrowDown');
+            bindHold('btnLeft', 'ArrowLeft');
+            bindHold('btnRight', 'ArrowRight');
+
+            document.getElementById('actionBtn').addEventListener('click', triggerTelepathy);
+            document.getElementById('eatBtn').addEventListener('click', eatCandy);
+            document.getElementById('runTestsBtn').addEventListener('click', runUnitTests);
+            document.getElementById('closeTestPanel').addEventListener('click', () => {
+                document.getElementById('testPanel').classList.add('hidden');
+            });
+
+            document.getElementById('soundBtn').addEventListener('click', async () => {
+                await audio.init();
+                audio.enabled = !audio.enabled;
+                document.getElementById('soundIconOn').classList.toggle('hidden', !audio.enabled);
+                document.getElementById('soundIconOff').classList.toggle('hidden', audio.enabled);
+            });
+
+            document.getElementById('startBtn').addEventListener('click', async () => {
+                await audio.init();
+                initWorld();
+                state.mode = 'OVERWORLD';
+                document.getElementById('modalOverlay').classList.add('hidden');
+                showToast('Explore the 6 sectors and scan wells with [SPACE]!', 'border-amber-400');
+            });
+        }
+
+        let lastTime = 0;
+        function animate(now = 0) {
+            requestAnimationFrame(animate);
+            const dt = Math.min(0.05, (now - lastTime) / 1000 || 0.016);
+            lastTime = now;
+
+            update(dt);
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        window.onload = function () {
+            initThree();
+            initWorld();
+            bindControls();
+            lastTime = performance.now();
+            animate(lastTime);
+        };
+    </script>
+</body>
+</html>
