@@ -21,4 +21,4 @@ A single self-contained `index.html` built with Three.js (isometric 3D), Tone.js
 
 ## Status
 
-Game code uploaded from the original single-file build. GitHub Pages hosting to be enabled from the `main` branch.
+Game code uploaded from the original single-file build. Hosted on GitHub Pages from the `main` branch — live at the Play link above.
